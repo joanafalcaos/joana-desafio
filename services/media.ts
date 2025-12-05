@@ -17,10 +17,39 @@ interface MediaResponse {
   items: MediaItem[];
 }
 
+interface UploadMediaResponse {
+  created: MediaItem[];
+}
+
 export const mediaService = {
   async getMedia(): Promise<MediaItem[]> {
     const response = await api.get<MediaResponse>('/media');
     return response.data.items;
+  },
+
+  /**
+   * Faz upload de uma mídia para o servidor
+   * @param uri URI do arquivo a ser enviado
+   * @param fileName Nome do arquivo
+   * @param mimeType Tipo MIME do arquivo
+   */
+  async uploadMedia(uri: string, fileName: string, mimeType: string): Promise<MediaItem[]> {
+    const formData = new FormData();
+
+    // Adicionar o arquivo ao FormData
+    formData.append('media', {
+      uri,
+      name: fileName,
+      type: mimeType,
+    } as any);
+
+    const response = await api.post<UploadMediaResponse>('/media', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data.created;
   },
 
   /**

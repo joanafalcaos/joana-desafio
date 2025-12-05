@@ -1,25 +1,108 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import Animated, {
   FadeIn,
   FadeInDown,
+  FadeInUp,
 } from 'react-native-reanimated';
+import { mediaService, MediaItem } from '../../services/media';
 
 export default function GalleryScreen() {
-  const [hasMedia, setHasMedia] = useState(false);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
-  const handleAddMedia = () => {
-    // Implementar funcionalidade de upload
-    console.log('Adicionar mídia');
+  useEffect(() => {
+    fetchMedia();
+  }, []);
+
+  const fetchMedia = async () => {
+    try {
+      const items = await mediaService.getMedia();
+      setMediaItems(items);
+    } catch (error) {
+      console.error('Erro ao buscar mídias:', error);
+      Alert.alert('Erro', 'Não foi possível carregar as mídias');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleAddMedia = async () => {
+    try {
+      // Solicitar permissão para acessar a galeria
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permissionResult.granted) {
+        Alert.alert('Permissão negada', 'É necessário permitir o acesso à galeria');
+        return;
+      }
+
+      // Abrir seletor de mídia
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        allowsEditing: false,
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        await uploadMedia(asset);
+      }
+    } catch (error) {
+      console.error('Erro ao selecionar mídia:', error);
+      Alert.alert('Erro', 'Não foi possível selecionar a mídia');
+    }
+  };
+
+  const uploadMedia = async (asset: ImagePicker.ImagePickerAsset) => {
+    try {
+      setUploading(true);
+
+      // Extrair nome do arquivo da URI
+      const fileName = asset.uri.split('/').pop() || 'media';
+
+      // Para vídeos, sempre usar video/mp4 independente do formato original
+      // O servidor pode não aceitar video/quicktime
+      let mimeType = asset.mimeType || 'image/jpeg';
+      if (asset.type === 'video') {
+        mimeType = 'video/mp4';
+      }
+
+      // Fazer upload
+      await mediaService.uploadMedia(asset.uri, fileName, mimeType);
+
+      // Recarregar todas as mídias do servidor
+      await fetchMedia();
+
+      Alert.alert('Sucesso', 'Mídia enviada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      Alert.alert('Erro', 'Não foi possível fazer o upload da mídia');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#E87722" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -27,6 +110,14 @@ export default function GalleryScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Galeria</Text>
       </View>
+
+      {/* Loading overlay durante upload */}
+      {uploading && (
+        <View style={styles.uploadingOverlay}>
+          <ActivityIndicator size="large" color="#E87722" />
+          <Text style={styles.uploadingText}>Enviando mídia...</Text>
+        </View>
+      )}
 
       <ScrollView
         style={styles.content}
@@ -44,6 +135,7 @@ export default function GalleryScreen() {
             style={styles.addMediaButton}
             onPress={handleAddMedia}
             activeOpacity={0.7}
+            disabled={uploading}
           >
             <View style={styles.addMediaIconContainer}>
               <MaterialCommunityIcons
@@ -56,8 +148,47 @@ export default function GalleryScreen() {
           </TouchableOpacity>
         </Animated.View>
 
+        {/* Lista de Mídias */}
+        {mediaItems.length > 0 && (
+          <Animated.View
+            entering={FadeInUp.duration(400).delay(200)}
+            style={styles.mediaGrid}
+          >
+            {mediaItems.map((item, index) => (
+              <Animated.View
+                key={item.id}
+                entering={FadeInUp.duration(400).delay(index * 50)}
+                style={styles.mediaCard}
+              >
+                <Image
+                  source={{ uri: item.thumbnailUrl || item.url }}
+                  style={styles.mediaImage}
+                  resizeMode="cover"
+                />
+                {item.mimeType.startsWith('video') && (
+                  <View style={styles.videoIndicator}>
+                    <MaterialCommunityIcons
+                      name="play-circle"
+                      size={32}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                )}
+                <View style={styles.mediaInfo}>
+                  <Text style={styles.mediaName} numberOfLines={1}>
+                    {item.originalName}
+                  </Text>
+                  <Text style={styles.mediaSize}>
+                    {mediaService.formatBytes(item.size)}
+                  </Text>
+                </View>
+              </Animated.View>
+            ))}
+          </Animated.View>
+        )}
+
         {/* Estado Vazio */}
-        {!hasMedia && (
+        {mediaItems.length === 0 && (
           <Animated.View
             entering={FadeIn.duration(600).delay(400)}
             style={styles.emptyStateContainer}
@@ -127,6 +258,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  uploadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#E87722',
@@ -205,6 +359,51 @@ const styles = StyleSheet.create({
   },
   emptyStateSubtitle: {
     fontSize: 14,
+    color: '#666666',
+  },
+  mediaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 20,
+  },
+  mediaCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 12,
+  },
+  mediaImage: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#F5F5F5',
+  },
+  videoIndicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -16 }, { translateY: -16 }],
+  },
+  mediaInfo: {
+    padding: 12,
+  },
+  mediaName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 4,
+  },
+  mediaSize: {
+    fontSize: 12,
     color: '#666666',
   },
   bottomNav: {
