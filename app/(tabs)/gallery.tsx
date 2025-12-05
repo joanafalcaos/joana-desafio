@@ -1,28 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Modal,
+  Dimensions,
+} from 'react-native';
 import Animated, {
   FadeIn,
   FadeInDown,
   FadeInUp,
 } from 'react-native-reanimated';
-import { mediaService, MediaItem } from '../../services/media';
+import { MediaItem, mediaService } from '../../services/media';
+import { Video, ResizeMode } from 'expo-av';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function GalleryScreen() {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     fetchMedia();
@@ -96,6 +103,45 @@ export default function GalleryScreen() {
     }
   };
 
+  const handleDeleteMedia = (item: MediaItem) => {
+    Alert.alert(
+      'Confirmação',
+      'Tem certeza que deseja deletar essa mídia?',
+      [
+        {
+          text: 'Não',
+          style: 'cancel',
+        },
+        {
+          text: 'Sim',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await mediaService.deleteMedia(item.id);
+              await fetchMedia();
+              Alert.alert('Sucesso', 'Mídia deletada com sucesso!');
+            } catch (error) {
+              console.error('Erro ao deletar mídia:', error);
+              Alert.alert('Erro', 'Não foi possível deletar a mídia');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleOpenMedia = (item: MediaItem) => {
+    setSelectedMedia(item);
+    setModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setTimeout(() => {
+      setSelectedMedia(null);
+    }, 300);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -160,27 +206,48 @@ export default function GalleryScreen() {
                 entering={FadeInUp.duration(400).delay(index * 50)}
                 style={styles.mediaCard}
               >
-                <Image
-                  source={{ uri: item.thumbnailUrl || item.url }}
-                  style={styles.mediaImage}
-                  resizeMode="cover"
-                />
-                {item.mimeType.startsWith('video') && (
-                  <View style={styles.videoIndicator}>
-                    <MaterialCommunityIcons
-                      name="play-circle"
-                      size={32}
-                      color="#FFFFFF"
-                    />
-                  </View>
-                )}
+                <TouchableOpacity
+                  onPress={() => handleOpenMedia(item)}
+                  activeOpacity={0.9}
+                  style={styles.mediaCardTouchable}
+                >
+                  <Image
+                    source={{ uri: item.thumbnailUrl || item.url }}
+                    style={styles.mediaImage}
+                    resizeMode="cover"
+                  />
+                  {item.mimeType.startsWith('video') && (
+                    <View style={styles.videoIndicator}>
+                      <MaterialCommunityIcons
+                        name="play-circle"
+                        size={32}
+                        color="#FFFFFF"
+                      />
+                    </View>
+                  )}
+                </TouchableOpacity>
                 <View style={styles.mediaInfo}>
-                  <Text style={styles.mediaName} numberOfLines={1}>
-                    {item.originalName}
-                  </Text>
-                  <Text style={styles.mediaSize}>
-                    {mediaService.formatBytes(item.size)}
-                  </Text>
+                  <View style={styles.mediaInfoContent}>
+                    <View style={styles.mediaTextContainer}>
+                      <Text style={styles.mediaName} numberOfLines={1}>
+                        {item.originalName}
+                      </Text>
+                      <Text style={styles.mediaSize}>
+                        {mediaService.formatBytes(item.size)}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteMedia(item)}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons
+                        name="trash-can-outline"
+                        size={18}
+                        color="#E87722"
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </Animated.View>
             ))}
@@ -207,6 +274,78 @@ export default function GalleryScreen() {
           </Animated.View>
         )}
       </ScrollView>
+
+      {/* Modal de Visualização de Mídia */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCloseModal}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            {/* Header do Modal */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderInfo}>
+                <Text style={styles.modalTitle} numberOfLines={1}>
+                  {selectedMedia?.originalName}
+                </Text>
+                <Text style={styles.modalSubtitle}>
+                  {selectedMedia && mediaService.formatBytes(selectedMedia.size)}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={handleCloseModal}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="close" size={28} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Conteúdo da Mídia */}
+            <View style={styles.modalMediaContainer}>
+              {selectedMedia && (
+                <>
+                  {selectedMedia.mimeType.startsWith('video') ? (
+                    <Video
+                      source={{ uri: selectedMedia.url }}
+                      style={styles.modalVideo}
+                      useNativeControls
+                      resizeMode={ResizeMode.CONTAIN}
+                      shouldPlay
+                    />
+                  ) : (
+                    <Image
+                      source={{ uri: selectedMedia.url }}
+                      style={styles.modalImage}
+                      resizeMode="contain"
+                    />
+                  )}
+                </>
+              )}
+            </View>
+
+            {/* Informações da Mídia */}
+            <View style={styles.modalFooter}>
+              <View style={styles.modalInfoRow}>
+                <MaterialCommunityIcons name="calendar" size={16} color="#999999" />
+                <Text style={styles.modalInfoText}>
+                  {selectedMedia && new Date(selectedMedia.createdAt).toLocaleDateString('pt-BR')}
+                </Text>
+              </View>
+              {selectedMedia?.width && selectedMedia?.height && (
+                <View style={styles.modalInfoRow}>
+                  <MaterialCommunityIcons name="image-size-select-large" size={16} color="#999999" />
+                  <Text style={styles.modalInfoText}>
+                    {selectedMedia.width} x {selectedMedia.height}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Navegação Inferior */}
       <View style={styles.bottomNav}>
@@ -382,6 +521,9 @@ const styles = StyleSheet.create({
     elevation: 3,
     marginBottom: 12,
   },
+  mediaCardTouchable: {
+    width: '100%',
+  },
   mediaImage: {
     width: '100%',
     height: 150,
@@ -393,8 +535,22 @@ const styles = StyleSheet.create({
     left: '50%',
     transform: [{ translateX: -16 }, { translateY: -16 }],
   },
+  deleteButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   mediaInfo: {
     padding: 12,
+  },
+  mediaInfoContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mediaTextContainer: {
+    flex: 1,
+    marginRight: 8,
   },
   mediaName: {
     fontSize: 14,
@@ -433,5 +589,80 @@ const styles = StyleSheet.create({
   navTextActive: {
     color: '#E87722',
     fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    backgroundColor: '#000000',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#1a1a1a',
+  },
+  modalHeaderInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#999999',
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalMediaContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+  },
+  modalImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT - 200,
+  },
+  modalVideo: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT - 200,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    backgroundColor: '#1a1a1a',
+    borderTopWidth: 1,
+    borderTopColor: '#333333',
+  },
+  modalInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalInfoText: {
+    fontSize: 14,
+    color: '#999999',
   },
 });

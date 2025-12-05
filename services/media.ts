@@ -53,6 +53,14 @@ export const mediaService = {
   },
 
   /**
+   * Deleta uma mídia do servidor
+   * @param id ID da mídia a ser deletada
+   */
+  async deleteMedia(id: string): Promise<void> {
+    await api.delete(`/media/${id}`);
+  },
+
+  /**
    * Calcula o tamanho total de armazenamento usado em bytes
    */
   calculateTotalSize(items: MediaItem[]): number {
