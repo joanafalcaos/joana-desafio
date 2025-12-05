@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
   FadeIn,
@@ -138,6 +139,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.uploadButton}
             activeOpacity={0.8}
+            onPress={() => router.push('/(tabs)/gallery')}
           >
             <MaterialCommunityIcons
               name="plus"
