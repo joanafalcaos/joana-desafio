@@ -174,13 +174,17 @@ export default function HomeScreen() {
           <Text style={styles.navText}>Histórico</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.7}
+          onPress={() => router.push('/(tabs)/gallery')}
+        >
           <MaterialCommunityIcons
-            name="camera"
+            name="folder-multiple-image"
             size={28}
             color="#999999"
           />
-          <Text style={styles.navText}>Camera</Text>
+          <Text style={styles.navText}>Galeria</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
