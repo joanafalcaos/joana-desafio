@@ -45,9 +45,8 @@ export default function LoginScreen() {
       await storage.saveAuthToken(response.token);
       await storage.saveUser(response.user);
 
-      // Navegar para home - será configurado depois
-      console.log('Login bem-sucedido, navegar para home');
-      Alert.alert('Sucesso', 'Login realizado com sucesso!');
+      // Navegar para home
+      router.replace('/(tabs)');
     } catch (error: any) {
       console.error('Erro no login:', error);
       const errorMessage =
