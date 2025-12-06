@@ -45,6 +45,12 @@ export default function TabLayout() {
           title: 'Galeria',
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Perfil',
+        }}
+      />
     </Tabs>
   );
 }

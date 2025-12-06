@@ -187,7 +187,11 @@ export default function HomeScreen() {
           <Text style={styles.navText}>Galeria</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.7}
+          onPress={() => router.push('/(tabs)/profile')}
+        >
           <MaterialCommunityIcons
             name="account"
             size={28}

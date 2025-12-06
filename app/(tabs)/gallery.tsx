@@ -380,7 +380,11 @@ export default function GalleryScreen() {
           <Text style={[styles.navText, styles.navTextActive]}>Galeria</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.7}
+          onPress={() => router.push('/(tabs)/profile')}
+        >
           <MaterialCommunityIcons
             name="account"
             size={28}
