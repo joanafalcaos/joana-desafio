@@ -50,6 +50,13 @@ export default function ProfileScreen() {
       setName(userData.name);
       setEmail(userData.email);
       setBirthday(formatBirthday(userData.birthday || ''));
+
+      // Carregar avatar se existir
+      if (userData.avatarUrl) {
+        // Decodificar a URL para corrigir caracteres especiais como %2F
+        const decodedUrl = decodeURIComponent(userData.avatarUrl);
+        setProfileImage(decodedUrl);
+      }
     } catch (error) {
       console.error('Erro ao buscar dados do usuário:', error);
       Alert.alert('Erro', 'Não foi possível carregar os dados do perfil');
@@ -98,8 +105,33 @@ export default function ProfileScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setProfileImage(result.assets[0].uri);
-        Alert.alert('Sucesso', 'Foto de perfil atualizada!');
+        const asset = result.assets[0];
+
+        try {
+          setLoading(true);
+
+          // Extrair nome do arquivo da URI
+          const fileName = asset.uri.split('/').pop() || 'avatar.jpg';
+          const mimeType = asset.mimeType || 'image/jpeg';
+
+          // Fazer upload do avatar
+          const updatedUser = await userService.uploadAvatar(asset.uri, fileName, mimeType);
+
+          // Atualizar estado com os dados do usuário e avatar
+          setUser(updatedUser);
+          if (updatedUser.avatarUrl) {
+            // Decodificar a URL para corrigir caracteres especiais como %2F
+            const decodedUrl = decodeURIComponent(updatedUser.avatarUrl);
+            setProfileImage(decodedUrl);
+          }
+
+          Alert.alert('Sucesso', 'Foto de perfil atualizada!');
+        } catch (uploadError) {
+          console.error('Erro ao fazer upload do avatar:', uploadError);
+          Alert.alert('Erro', 'Não foi possível fazer upload da foto de perfil');
+        } finally {
+          setLoading(false);
+        }
       }
     } catch (error) {
       console.error('Erro ao selecionar imagem:', error);
@@ -226,7 +258,14 @@ export default function ProfileScreen() {
         >
           <View style={styles.profileImageWrapper}>
             {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+              <Image
+                source={{
+                  uri: profileImage,
+                  cache: 'reload',
+                }}
+                style={styles.profileImage}
+                key={profileImage}
+              />
             ) : (
               <View style={styles.profileImagePlaceholder}>
                 <MaterialCommunityIcons name="account" size={80} color="#E87722" />
