@@ -399,7 +399,11 @@ export default function ProfileScreen() {
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.7}
+          onPress={() => router.push('/(tabs)/history')}
+        >
           <MaterialCommunityIcons
             name="history"
             size={28}
