@@ -1,14 +1,14 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -16,12 +16,10 @@ import Animated, {
   SlideInRight,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withTiming,
-  withSequence,
+  withTiming
 } from 'react-native-reanimated';
-import { userService, User } from '../../services/user';
-import { mediaService, MediaItem } from '../../services/media';
+import { MediaItem, mediaService } from '../../services/media';
+import { User, userService } from '../../services/user';
 
 export default function HomeScreen() {
   const [user, setUser] = useState<User | null>(null);
@@ -165,7 +163,11 @@ export default function HomeScreen() {
           <Text style={[styles.navText, styles.navTextActive]}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.7}
+          onPress={() => router.push('/(tabs)/history')}
+        >
           <MaterialCommunityIcons
             name="history"
             size={28}
