@@ -28,6 +28,12 @@ export default function TabLayout() {
           title: 'Galeria',
         }}
       />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'Histórico',
+        }}
+      />
     </Tabs>
   );
 }
