@@ -8,7 +8,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
   FadeIn,
@@ -24,6 +24,13 @@ export default function HistoryScreen() {
   useEffect(() => {
     fetchLogs();
   }, []);
+
+  // Recarregar logs quando a tela ganhar foco
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchLogs();
+    }, [])
+  );
 
   const fetchLogs = async () => {
     try {
