@@ -80,24 +80,60 @@ export default function GalleryScreen() {
 
       // Extrair nome do arquivo da URI
       const fileName = asset.uri.split('/').pop() || 'media';
-
-      // Para vídeos, sempre usar video/mp4 independente do formato original
-      // O servidor pode não aceitar video/quicktime
       let mimeType = asset.mimeType || 'image/jpeg';
-      if (asset.type === 'video') {
+
+      // Validar formato da imagem
+      if (asset.type === 'image') {
+        // Formatos permitidos: jpg, jpeg, png, webp
+        const allowedImageFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const fileExtension = fileName.toLowerCase().split('.').pop();
+        const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+        // Verificar se o formato é permitido
+        if (!allowedImageFormats.includes(mimeType.toLowerCase()) &&
+            !allowedExtensions.includes(fileExtension || '')) {
+          Alert.alert(
+            'Formato não suportado',
+            `Apenas imagens nos formatos JPG, JPEG, PNG e WEBP são permitidas.\n\nFormato detectado: ${mimeType || fileExtension}`
+          );
+          return;
+        }
+      } else if (asset.type === 'video') {
+        // Para vídeos, sempre usar video/mp4
         mimeType = 'video/mp4';
       }
 
       // Fazer upload
-      await mediaService.uploadMedia(asset.uri, fileName, mimeType);
+      const uploadedItems = await mediaService.uploadMedia(asset.uri, fileName, mimeType);
+
+      // Verificar se o upload realmente foi bem-sucedido
+      if (!uploadedItems || uploadedItems.length === 0) {
+        throw new Error('O servidor não aceitou o arquivo. Verifique o formato e tente novamente.');
+      }
 
       // Recarregar todas as mídias do servidor
       await fetchMedia();
 
       Alert.alert('Sucesso', 'Mídia enviada com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao fazer upload:', error);
-      Alert.alert('Erro', 'Não foi possível fazer o upload da mídia');
+
+      // Mensagem de erro mais detalhada
+      let errorMessage = 'Não foi possível fazer o upload da mídia';
+
+      if (error.response) {
+        // Erro do servidor
+        const serverMessage = error.response.data?.message || error.response.data?.error;
+        if (serverMessage) {
+          errorMessage = `Erro: ${serverMessage}`;
+        } else {
+          errorMessage = `Erro do servidor (${error.response.status})`;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Erro', errorMessage);
     } finally {
       setUploading(false);
     }

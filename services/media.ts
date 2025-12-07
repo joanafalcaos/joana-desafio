@@ -43,11 +43,21 @@ export const mediaService = {
       type: mimeType,
     } as any);
 
+    console.log('Upload iniciado:', { fileName, mimeType, uri });
+
     const response = await api.post<UploadMediaResponse>('/media', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+
+    console.log('Upload response:', response.data);
+
+    // Verificar se a resposta contém os itens criados
+    if (!response.data || !response.data.created) {
+      console.error('Resposta inválida do servidor:', response.data);
+      throw new Error('Resposta inválida do servidor');
+    }
 
     return response.data.created;
   },
